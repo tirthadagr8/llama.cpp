@@ -48,6 +48,9 @@ def main(args_in: list[str] | None = None) -> None:
     parser.add_argument("--scenario", type=str, help="Scenario to run", required=True)
     parser.add_argument("--duration", type=str, help="Bench scenario", required=True)
 
+    parser.add_argument("-epl","--enable-prompt-logging", action="store_true",
+                    help="Enable logging of user prompts on the server")
+    
     args = parser.parse_args(args_in)
 
     start_time = time.time()
@@ -278,6 +281,10 @@ def start_server_background(args):
     server_args.append('--cont-batching')
     server_args.append('--metrics')
     server_args.append('--flash-attn')
+
+    if hasattr(args, 'enable_prompt_logging') and args.enable_prompt_logging:
+        server_args.append('--enable-prompt-logging')
+
     args = [str(arg) for arg in [server_path, *server_args]]
     print(f"bench: starting server with: {' '.join(args)}")
     pkwargs = {
