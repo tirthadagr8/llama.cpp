@@ -34,6 +34,42 @@
 using json = nlohmann::ordered_json;
 
 constexpr int HTTP_POLLING_SECONDS = 1;
+// In common_params struct or server_context
+std::string prompt_log_dir = "prompt_logs"; // Default directory
+#include <filesystem>
+#include <filesystem>
+#include <fstream>
+#include <iomanip>
+
+void ensure_directory_exists(const std::string& dir_path);
+void log_prompt(const json &prompt);
+
+
+void log_prompt(const json &prompt) {
+    std::time_t now = std::time(nullptr);
+    char timestamp[20];
+    std::strftime(timestamp, sizeof(timestamp), "%Y%m%d%H%M%S", std::localtime(&now));
+
+    std::string log_dir = "prompt_logs";
+    ensure_directory_exists(log_dir);
+
+    std::string log_file_name = log_dir + "/prompt_" + timestamp + ".log";
+    std::ofstream log_file(log_file_name);
+
+    if (log_file.is_open()) {
+        log_file << "Timestamp: " << timestamp << "\n";
+        log_file << "Prompt: " << prompt.dump(4) << "\n";
+        log_file.close();
+    } else {
+        LOG_ERR("Failed to open log file: %s\n", log_file_name.c_str());
+    }
+}
+// Then define the function later in the file
+void ensure_directory_exists(const std::string& dir_path) {
+    if (!std::filesystem::exists(dir_path)) {
+        std::filesystem::create_directories(dir_path);
+    }
+}
 
 enum stop_type {
     STOP_TYPE_NONE,
@@ -3354,7 +3390,7 @@ inline void signal_handler(int signal) {
 int main(int argc, char ** argv) {
     // own arguments required by this example
     common_params params;
-
+    ensure_directory_exists(prompt_log_dir);
     if (!common_params_parse(argc, argv, params, LLAMA_EXAMPLE_SERVER)) {
         return 1;
     }
@@ -3827,7 +3863,7 @@ int main(int argc, char ** argv) {
             httplib::Response & res,
             oaicompat_type oaicompat) {
         GGML_ASSERT(type == SERVER_TASK_TYPE_COMPLETION || type == SERVER_TASK_TYPE_INFILL);
-
+        
         if (ctx_server.params_base.embedding) {
             res_error(res, format_error_response("This server does not support completions. Start it without `--embeddings`", ERROR_TYPE_NOT_SUPPORTED));
             return;
@@ -3840,7 +3876,12 @@ int main(int argc, char ** argv) {
             const auto & prompt = data.at("prompt");
             // TODO: this log can become very long, put it behind a flag or think about a more compact format
             //SRV_DBG("Prompt: %s\n", prompt.is_string() ? prompt.get<std::string>().c_str() : prompt.dump(2).c_str());
-
+            
+            /* Log the prompt */
+            if (ctx_server.params_base.enable_prompt_logging) {
+                log_prompt(prompt);
+            }
+            /* Log the prompt*/
             std::vector<llama_tokens> tokenized_prompts = tokenize_input_prompts(ctx_server.vocab, prompt, true, true);
             tasks.reserve(tokenized_prompts.size());
             for (size_t i = 0; i < tokenized_prompts.size(); i++) {
