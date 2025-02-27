@@ -588,7 +588,14 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
         }
     };
 
-
+    add_opt(common_arg(
+        {"-epl","--enable-prompt-logging"},
+        "Enable logging of user prompts (default: false)",
+        [](common_params & params) {
+            params.enable_prompt_logging = true;
+        }
+    ).set_examples({LLAMA_EXAMPLE_SERVER}));
+    
     add_opt(common_arg(
         {"-h", "--help", "--usage"},
         "print usage and exit",
